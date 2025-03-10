@@ -4,13 +4,21 @@ import string
 from typing import List, Dict, Any, Optional, Tuple
 import traceback
 import re
+from sacremoses import MosesTokenizer, MosesDetokenizer
 
-def remove_punctuation(text: str) -> str:
-    """Removes punctuation only if it has a space before or after it."""
-    # Remove punctuation that is surrounded by spaces
-    text = re.sub(r'\s([,.!?;:])\s', ' ', text)
-    text = re.sub(r'\s([,.!?;:])$', ' ', text)  # Remove trailing punctuation with space
-    return text.strip()
+def remove_punctuation_n(text: str) -> str:
+    text = re.sub(r'<[^>]+>', '', text).strip()
+    words = text.split()  # Split into words
+    detokenizer = MosesDetokenizer()  # Initialize Detokenizer
+    return detokenizer.detokenize(words)  # Detokenize the words
+
+
+def remove_punctuation_un(text: str) -> str:
+    text = re.sub(r'<[^>]+>', '', text).strip()
+    words = text.split()  # Split into words
+    detokenizer = MosesDetokenizer()  # Initialize Detokenizer
+    return detokenizer.detokenize(words)  # Detokenize the words
+    #   return "".join(text)
 
 def load_json(file_path: str) -> Optional[List[Dict[str, Any]]]:
     """Loads a JSON file."""
@@ -24,8 +32,14 @@ def load_json(file_path: str) -> Optional[List[Dict[str, Any]]]:
 def group_values(normalized_dict: Dict[str, float]) -> Tuple[List[str], List[str], List[str]]:
     """Groups the normalized values into three categories based on proximity."""
     try:
+        
+        filtered_dict = {k: v for k, v in normalized_dict.items() if "cents" not in k.lower() and "pennies" not in k.lower()}
+        # print(filtered_dict)
+        if not filtered_dict:
+            filtered_dict = normalized_dict
+
         # Sort the normalized values in descending order
-        sorted_normalized = sorted(normalized_dict.items(), key=lambda x: x[1], reverse=True)
+        sorted_normalized = sorted(filtered_dict.items(), key=lambda x: x[1], reverse=True)
         
         values_sorted = [item[1] for item in sorted_normalized]
         words_sorted = [item[0] for item in sorted_normalized]
@@ -34,6 +48,7 @@ def group_values(normalized_dict: Dict[str, float]) -> Tuple[List[str], List[str
             return [], [], []
         
         # Case: All values are the same → Put all in most_likely
+        # print(words_sorted)
         if len(set(values_sorted)) == 1:
             return [], [], words_sorted
 
@@ -61,12 +76,16 @@ def group_values(normalized_dict: Dict[str, float]) -> Tuple[List[str], List[str
         # Ensure second_most_likely is not empty if others is filled
         if not second_most_likely and others:
             second_most_likely.append(others.pop(0))
-
+        # print(most_likely)
         return others, second_most_likely, most_likely
 
     except Exception as e:
         print(f"Error in group_values: {str(e)}\n{traceback.format_exc()}")
         return [], [], []
+    
+def remove_dollar_before_euros(text: str) -> str:
+    """Removes the dollar sign if the succeeding word is 'euros' (case insensitive)."""
+    return re.sub(r'\$\s*(\d[\d.,]*)\s+(\w+)\s+euros\b', r'\1 \2 euros', text, flags=re.IGNORECASE)
 
 def select_normalized(normalized_dict: Dict[str, float]) -> Optional[str]:
     """Selects a normalized word based on weighted probabilities."""
@@ -96,72 +115,81 @@ def select_normalized(normalized_dict: Dict[str, float]) -> Optional[str]:
         print(f"Error in select_normalized: {str(e)}\n{traceback.format_exc()}")
         return None
     
-# def select_normalized(normalized_dict: Dict[str, float]) -> Optional[str]:
-#     """Selects a word based on weighted probabilities."""
-#     if not normalized_dict:
-#         return None
-#     sorted_words = sorted(normalized_dict.items(), key=lambda x: x[1], reverse=True)
-#     return random.choice([word[0] for word in sorted_words])
-
 def generate_sentences(
     word_list: List[Dict[str, Any]], min_length: int = 5, max_length: int = 50, num_sentences: int = 5
 ) -> List[Dict[str, str]]:
-    """Generates sentences ensuring all words appear in consecutive order while respecting min/max length."""
-    
-    # Extract normalized words using select_normalized
-    words_normalized = []
-    words_unnormalized = []
-    
-    for word_data in word_list:
-        if "normalized" in word_data and isinstance(word_data["normalized"], dict):
-            normalized_dict = word_data["normalized"]
-            selected_word = select_normalized(normalized_dict)
-            if selected_word:
-                words_normalized.append(selected_word)
-        if "unnormalized" in word_data:
-            words_unnormalized.append(word_data["unnormalized"])
+    """Splits sentences before normalizing them and ensures words appear in consecutive order."""
 
-    # print(f"Words Normalized: {words_normalized}")
-    # print(f"Words Unnormalized: {words_unnormalized}")
+    # Define currency words and multipliers
+    CURRENCY_WORDS = {"dollars", "dollar", "bucks", "buck", "cents", "cent", "pesos", "peso"}
+    MULTIPLIERS = {"million", "millions", "billion", "trillion", "thousand", "thousands", "hundred"}
 
-    if len(words_normalized) < min_length:
-        return []
-
+    # Split word list into sentences before normalization
     sentences = []
     sentence_start = 0
 
-    while sentence_start < len(words_normalized):
+    while sentence_start < len(word_list):
         sentence_end = sentence_start + random.randint(min_length, max_length)
-        sentence_end = min(sentence_end, len(words_normalized))  # Ensure no out-of-bounds
+        sentence_end = min(sentence_end, len(word_list))  # Ensure no out-of-bounds
 
-        chunk_normalized = words_normalized[sentence_start:sentence_end]
-        chunk_unnormalized = words_unnormalized[sentence_start:sentence_end]
+        chunk = word_list[sentence_start:sentence_end]
+        sentence_start = sentence_end  # Move to next sentence
 
-        if chunk_normalized and chunk_unnormalized:
-            sentence_normalized = remove_punctuation(" ".join(chunk_normalized))
-            sentence_unnormalized = remove_punctuation(" ".join(chunk_unnormalized))
+        # print(chunk)
+        words_normalized = []
+        words_unnormalized = []
+        lastStatus = False
 
+        for word_data in chunk:
+            # print(word_data)
+            if "unnormalized" in word_data:
+                words_unnormalized.append(word_data["unnormalized"])
+
+            if "normalized" in word_data and isinstance(word_data["normalized"], dict):
+                normalized_dict = word_data["normalized"]
+                selected_word = select_normalized(normalized_dict)
+
+                lastSplit = selected_word.strip().split()
+                last = lastSplit[-1] if lastSplit else ""
+
+                if lastStatus and selected_word.lower() in MULTIPLIERS:
+                    words_normalized.pop()  # Remove currency word
+                    words_normalized.append(afterPop)  # Swap positions
+                    words_normalized.append(last)  
+                    words_normalized.append(last_word)  
+                    lastStatus = False
+                    continue  
+                else:
+                    lastStatus = False
+
+                if last.lower() in CURRENCY_WORDS:
+                    if lastSplit:
+                        last_word = lastSplit.pop()
+                        afterPop = " ".join(lastSplit)
+                        lastStatus = True  
+
+                words_normalized.append(selected_word)
+
+            # if "unnormalized" in word_data:
+            #     words_unnormalized.append(word_data["unnormalized"])
+
+            
+
+        if words_normalized and words_unnormalized:
+            sentence_normalized = remove_punctuation_n(" ".join(words_normalized))
+            sentence_unnormalized = remove_punctuation_un(" ".join(words_unnormalized))
+            
             sentences.append({
                 "normalized": sentence_normalized, 
-                "unnormalized": sentence_unnormalized
+                "unnormalized": remove_dollar_before_euros(sentence_unnormalized)
+                # "unnormalized": sentence_unnormalized
             })
 
-        sentence_start = sentence_end  # Move the start point for the next sentence
-
     return sentences
-
 # Main script execution
 if __name__ == "__main__":
     input_file = 'earnings.json'
     output_file = 'output.json'
-
-    # try:
-    #     num_sentences = int(input("Enter the number of random sentences to generate: "))
-    #     if num_sentences <= 0:
-    #         raise ValueError("Number of sentences must be greater than 0.")
-    # except ValueError as e:
-    #     print(f"Invalid input: {e}")
-    #     num_sentences = 5
 
     data = load_json(input_file)
     if data is not None:
