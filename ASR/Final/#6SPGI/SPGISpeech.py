@@ -1,11 +1,14 @@
 import pandas as pd
 import re
 from difflib import SequenceMatcher
+import os
 
 # Load data from TSV
 # input_file = "spgi_test_1.tsv" 
-input_file = "spgi_test_2.tsv" 
+input_file = "spgi_validation_1.tsv" 
 # input_file = "spgi_test_1_processed.tsv" 
+
+
 data = pd.read_csv(input_file, delimiter="\t", dtype=str)
 
 # Strip column names of leading/trailing spaces
@@ -270,6 +273,6 @@ except Exception as e:
 
 # Save output as TSV
 # data.to_csv("spgi_output_1.csv", index=False)
-data.to_csv("spgi_output_2.csv", index=False)
+data.to_csv(os.path.join("output", "spgi_validation_1_output.tsv"), sep='\t', index=False)
 # data.to_csv("spgi_test_1_processed.csv", index=False)
 # data.to_csv("spgi_output_2.tsv", index=False, sep='\t')

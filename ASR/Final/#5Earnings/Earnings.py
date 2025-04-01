@@ -116,7 +116,7 @@ def select_normalized(normalized_dict: Dict[str, float]) -> Optional[str]:
         return None
     
 def generate_sentences(
-    word_list: List[Dict[str, Any]], min_length: int = 5, max_length: int = 50, num_sentences: int = 5
+    word_list: List[Dict[str, Any]], min_length: int = 5, max_length: int = 50
 ) -> List[Dict[str, str]]:
     """Splits sentences before normalizing them and ensures words appear in consecutive order."""
 
@@ -189,7 +189,7 @@ def generate_sentences(
 # Main script execution
 if __name__ == "__main__":
     input_file = 'earnings.json'
-    output_file = 'output.json'
+    output_file = 'output-5.json'
 
     data = load_json(input_file)
     if data is not None:

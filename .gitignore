@@ -1,0 +1,57 @@
+# Ignore the data directory
+ASR/Final/#4AMI/input
+ASR/Final/#4AMI/output
+ASR/Final/#6SPGI/input
+ASR/Final/#6SPGI/output
+ASR/Final/#5Earnings/input
+ASR/Final/#5Earnings/output
+ASR/#3CHiME-6
+ASR/#2SwitchBoard
+ASR/#1GTN
+ASR/old files
+ASR/shared/test
+ASR/shared/train
+ASR/shared/validation
+
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore virtual environment files
+venv/
+env/
+*.venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Ignore environment and dependency files
+*.env
+.envrc
+conda-meta/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore output and generated files
+*.h5
+*.hdf5
+# *.csv
+# *.tsv
+# *.json
+*.sqlite
+*.db
+
+# Ignore Jupyter Notebook metadata
+.ipynb_checkpoints/
+
+# Ignore VS Code settings (optional)
+.vscode/
