@@ -164,10 +164,10 @@ def main():
     total_edits = 0
     total_chars = 0
 
-    for i, raw_example in enumerate(validation_data): 
+    for i, raw_example in enumerate(test_data): 
         eval_input = format_chat(raw_example, tokenizer, inference=True)
         input_ids = torch.tensor(eval_input['input_ids']).unsqueeze(0).to(device)
-        attention_mask = (input_ids != tokenizer.eos_token_id).long()  # or use pad_token_id if it’s set separately
+        attention_mask = (input_ids != tokenizer.eos_token_id).long()
 
         with torch.no_grad():
             output_ids = model.generate(
